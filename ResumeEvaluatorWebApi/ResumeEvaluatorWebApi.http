@@ -1,0 +1,6 @@
+@ResumeEvaluatorWebApi_HostAddress = http://localhost:5269
+
+GET {{ResumeEvaluatorWebApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
