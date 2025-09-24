@@ -1,0 +1,319 @@
+<!-- resume-analysis.component.html -->
+ <link
+  rel="stylesheet"
+  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+  integrity="sha512-...your-hash..."
+  crossorigin="anonymous"
+  referrerpolicy="no-referrer"
+/>
+<div class="container">
+  <!-- Header (Visible in all states) -->
+  <header>
+    <div class="logo">
+      
+      <h1>
+        <span *ngIf="currentState === AppState.RESULTS"> <i class="fas fa-user-tie"></i> Candidate Assessment</span>
+      </h1>
+    </div>
+    
+  </header>
+
+  <!-- UPLOAD STATE -->
+  <div *ngIf="currentState === AppState.UPLOAD" class="state-container">
+    <div class="upload-card card">
+      <div class="card-header">
+        <h2>Analyze Resume Against Job Description</h2>
+        <p>Upload your resume and paste the job description to get a detailed analysis</p>
+      </div>
+
+      <div class="upload-form">
+        <!-- Resume File Upload -->
+        <div class="form-group">
+          <label for="resumeFile">
+            <i class="fas fa-file-upload"></i>
+            Upload Resume
+          </label>
+          <div class="file-upload-wrapper">
+            <input type="file" id="resumeFile" (change)="onFileSelected($event)" 
+                   accept=".pdf,.doc,.docx" class="file-input">
+            <label for="resumeFile" class="file-upload-label">
+              <i class="fas fa-cloud-upload-alt"></i>
+              <span class="file-name">
+                {{ resumeFile ? resumeFile.name : 'Choose PDF or Word document' }}
+              </span>
+              <span class="browse-btn">Browse</span>
+            </label>
+          </div>
+          <div class="file-hint">Supported formats: PDF, DOC, DOCX (Max: 5MB)</div>
+        </div>
+
+        <!-- Job Description Input -->
+        <div class="form-group">
+          <label for="jobDescription">
+            <i class="fas fa-clipboard-list"></i>
+            Job Description
+          </label>
+          <textarea id="jobDescription" [(ngModel)]="jobDescription" 
+                    placeholder="Paste the complete job description here...&#10;&#10;Example:&#10;We are looking for a Senior Software Engineer with 5+ years experience in Angular and Node.js. The ideal candidate should have experience with cloud technologies and CI/CD pipelines."
+                    rows="8" class="form-textarea"></textarea>
+          <div class="char-count" [class.char-count-warning]="jobDescription.length < 50">
+            {{ jobDescription.length }} characters (minimum 50 required)
+          </div>
+        </div>
+
+        <!-- Error Message -->
+        <div *ngIf="errorMessage" class="error-message">
+          <i class="fas fa-exclamation-triangle"></i>
+          <span>{{ errorMessage }}</span>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="action-buttons">
+          <button type="button" (click)="analyzeResume()" 
+                  [disabled]="!isFormValid"
+                  class="btn btn-primary analyze-btn">
+            <i class="fas fa-chart-line"></i>
+            Analyze Resume
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOADING STATE -->
+  <div *ngIf="currentState === AppState.LOADING" class="state-container">
+    <div class="loading-card card">
+      <div class="loading-content">
+        <div class="spinner"></div>
+        <h2>Analyzing Your Resume</h2>
+        <p>This may take a few moments...</p>
+        
+        <!-- Progress Bar -->
+        <div class="progress-section">
+          <div class="progress-label">
+            <span>Processing...</span>
+            <span>{{ uploadProgress }}%</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" [style.width.%]="uploadProgress"></div>
+          </div>
+        </div>
+
+        <div class="loading-steps">
+          <div class="step" [class.active]="uploadProgress > 0">
+            <i class="fas fa-check"></i>
+            <span>Uploading file</span>
+          </div>
+          <div class="step" [class.active]="uploadProgress > 30">
+            <i class="fas fa-check"></i>
+            <span>Parsing content</span>
+          </div>
+          <div class="step" [class.active]="uploadProgress > 70">
+            <i class="fas fa-check"></i>
+            <span>Generating analysis</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ERROR STATE -->
+  <div *ngIf="currentState === AppState.ERROR" class="state-container">
+    <div class="error-card card">
+      <div class="error-content">
+        <i class="fas fa-exclamation-circle error-icon"></i>
+        <h2>Analysis Failed</h2>
+        <p>{{ errorMessage }}</p>
+        <button (click)="analyzeAnother()" class="btn btn-primary">
+          <i class="fas fa-redo"></i> Try Again
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULTS STATE -->
+  <div *ngIf="currentState === AppState.RESULTS && analysisResult" class="state-container">
+    <div class="results-header">
+      <h2>Analysis Results</h2>
+      <p>Based on your resume and the provided job description</p>
+    </div>
+
+    <!-- Dashboard Grid (Your original design) -->
+    <div class="dashboard">
+      <!-- Overall Score Card -->
+      <div class="card score-card">
+        <div class="card-header">
+          <div class="card-title">Overall Score</div>
+          <div class="card-icon">
+            <i class="fas fa-chart-line"></i>
+          </div>
+        </div>
+        <div class="score-display">
+          <div class="score-value" [style.color]="getScoreColor(analysisResult?.overallScore)">
+            {{ analysisResult?.overallScore }}
+          </div>
+          <div class="score-label">out of 100</div>
+        </div>
+      </div>
+
+      <!-- Fit Status Card -->
+      <div class="card fit-status-card">
+        <div class="card-header">
+          <div class="card-title">Fit Status</div>
+          <div class="card-icon">
+            <i class="fas fa-check-circle"></i>
+          </div>
+        </div>
+        <div class="fit-status">
+          <div class="status-badge" 
+               [class.status-good]="analysisResult?.fitStatus=== 'Fit'"
+               [class.status-average]="analysisResult?.fitStatus === 'Average'"
+               [class.status-poor]="analysisResult?.fitStatus === 'Poor'">
+            {{ analysisResult?.fitStatus }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Experience Match Card -->
+      <div class="card experience-card">
+        <div class="card-header">
+          <div class="card-title">Experience Match</div>
+          <div class="card-icon">
+            <i class="fas fa-briefcase"></i>
+          </div>
+        </div>
+        <div class="progress-container">
+          <div class="progress-label">
+            <span>Match Percentage</span>
+            <span>{{ analysisResult?.experienceMatch }}%</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill experience-progress" 
+                 [style.width.%]="analysisResult?.experienceMatch"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Skill Match Card -->
+      <div class="card skills-card">
+        <div class="card-header">
+          <div class="card-title">Skill Match</div>
+          <div class="card-icon">
+            <i class="fas fa-code"></i>
+          </div>
+        </div>
+        <div class="progress-container">
+          <div class="progress-label">
+            <span>Match Percentage</span>
+            <span>{{ analysisResult?.skillMatch }}%</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill skills-progress" 
+                 [style.width.%]="analysisResult?.skillMatch"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Skills Analysis Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Skills Analysis</div>
+          <div class="card-icon">
+            <i class="fas fa-tasks"></i>
+          </div>
+        </div>
+        <div class="skills-list">
+          <div class="skill-category">
+            <div class="category-title">Missing Skills</div>
+            <div class="skill-tags">
+              <span *ngFor="let skill of analysisResult?.missingSkills" 
+                    class="skill-tag missing-skill">
+                {{ skill }}
+              </span>
+              <span *ngIf="analysisResult?.missingSkills?.length === 0" class="no-items">
+                No missing skills found
+              </span>
+            </div>
+          </div>
+          <div class="skill-category">
+            <div class="category-title">Extra Skills</div>
+            <div class="skill-tags">
+              <span *ngFor="let skill of analysisResult.extraSkills" 
+                    class="skill-tag extra-skill">
+                {{ skill }}
+              </span>
+              <span *ngIf="analysisResult.extraSkills.length === 0" class="no-items">
+                No extra skills found
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Strengths Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Strengths</div>
+          <div class="card-icon">
+            <i class="fas fa-star"></i>
+          </div>
+        </div>
+        <div class="skill-tags">
+          <span *ngFor="let strength of analysisResult.strengths" 
+                class="skill-tag strength-tag">
+            {{ strength }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Improvement Areas Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Areas for Improvement</div>
+          <div class="card-icon">
+            <i class="fas fa-tools"></i>
+          </div>
+        </div>
+        <div class="skill-tags">
+          <span *ngFor="let area of analysisResult.improvementAreas" 
+                class="skill-tag improvement-tag">
+            {{ area }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Suggestions Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Suggestions</div>
+          <div class="card-icon">
+            <i class="fas fa-lightbulb"></i>
+          </div>
+        </div>
+        <div class="suggestions-list">
+          <div *ngFor="let suggestion of analysisResult.suggestions" class="suggestion-item">
+            <i class="fas fa-chevron-right suggestion-icon"></i>
+            <div>{{ suggestion }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Summary Card -->
+      <div class="card summary-card">
+        <div class="card-header">
+          <div class="card-title">Resume Summary</div>
+          <div class="card-icon">
+            <i class="fas fa-file-alt"></i>
+          </div>
+        </div>
+        <div class="summary-content">
+          {{ analysisResult?.resumeSummary }}
+        </div>
+      </div>
+      <button (click)="analyzeAnother()" class="btn btn-secondary">
+        <i class="fas fa-redo"></i> Analyze Another Resume
+      </button>
+    </div>
+    
+  </div>
+</div>
