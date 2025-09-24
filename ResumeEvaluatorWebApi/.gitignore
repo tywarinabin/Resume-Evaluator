@@ -102,3 +102,5 @@ publish/
 
 # Ignore secrets
 appsettings.json
+# Visual Studio cache
+.vs/
